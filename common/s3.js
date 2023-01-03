@@ -1,6 +1,5 @@
 const AWS = require("aws-sdk");
 const fs = require('fs');
-// const multer= require('multer')
 const awsConfig = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -11,7 +10,6 @@ const s3 = new AWS.S3(awsConfig);
 const uploadFileToAWS = async (params) => new Promise((resolve, reject) => {
   s3.upload(params, (err, response) => {
     if (err) {
-      // console.log(err);
       reject(err);
     } else {
       resolve(response);
@@ -34,8 +32,7 @@ async function uploadFiles(req, res) {
         contentType: ele.mimetype,
         ACL: "public-read",
       };
-      // console.log("params :", params)
-      // eslint-disable-next-line no-await-in-loop
+     
       const result = await uploadFileToAWS(params);
       ele.location = result.Location;
       ele.key = result.Key;
@@ -102,5 +99,4 @@ module.exports = { uploadFiles }
 // };
 
 // module.exports = { upload, uploadFileToAWS };
-
 
