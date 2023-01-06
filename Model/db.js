@@ -12,6 +12,10 @@ db.sequelize = sequelize;
 db.sequelize.sync({ force: false });
 
 db.user = require("./user")(sequelize, Sequelize);
+db.posts = require("./posts")(sequelize, Sequelize);
+
+//Associations
+db.user.hasMany(db.posts, { foreignKey: "user_id" });
 
 //export db
 module.exports = db;

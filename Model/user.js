@@ -37,9 +37,14 @@ module.exports = (sequelize, Sequelize) => {
         type: Sequelize.STRING,
         autoNull: true,
       },
+      status:{
+        type: Sequelize.BOOLEAN,
+        autoNull: true,
+        defaultValue: 1,
+      }
     },
     {
-      paranoid: true,
+      paranoid: true, timeStamps:true,
       hooks: {
         beforeCreate: async (user) => {
           if (user && user.email) {

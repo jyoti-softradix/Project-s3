@@ -1,44 +1,48 @@
-const db = require("../Model/db");
+const db = require("../../Model/db");
 const randomstring = require("randomstring");
+const jwt = require('jsonwebtoken');
 const services = require("./services");
-const sendImBlue = require("../common/sendInBlue");
+const sendInBlue = require("../../common/sendInBlue");
 const {
   generateToken,
   comparePass,
-  decodeToken
-} = require("../common/middelware");
+} = require("../../common/middelware");
 const Users = db.user;
+ const sequelize = db.sequelize;
 
 // Signup user Api
 async function signup(req, res) {
   const { body } = req;
-  const details = body;
+  let transaction;
   try {
-    const checkUser = await services.getUserByMail(details.email);
+    const checkUser = await services.getUserByMail(body.email);
     if (checkUser) {
       return res.send("Email already exist");
     }
-    const phone = await services.getUserByPhone(details.phone_number);
+    const phone = await services.getUserByPhone(body.phone_number);
     if (phone) {
       return res.send("phone already exist");
     }
-
-    if (!details.password) {
-      details.password = randomstring.generate(7);
+    transaction = await sequelize.transaction();
+    if (!body.password) {
+      body.password = randomstring.generate(7);
     }
-    const userDetail = await Users.create(details);
+    const userDetail = await services.createUser(body,transaction);
     delete userDetail.password;
-
-    const to = { email: details.email.toLowerCase() };
+    //sending mail
+    const to = { email: body.email};
     const subject = "Signup confirmation mail";
     const htmlContent = `<html><h1> Name:${userDetail.first_name}</h1>
-            <h2>Password is: ${details.password}</h2></html>`;
-    await sendImBlue.sendinBlueMail(to, subject, htmlContent);
+            <h2>Password is: ${body.password}</h2></html>`;
+    await sendInBlue.sendinBlueMail(to, subject, htmlContent);
     console.log("sendTo", to, subject, htmlContent);
-    const msg = "User signup successfully";
-    res.status(201).json({status: 1, success: true, message: msg, data: userDetail });
-  } catch (e) {
-    res.status(500).send({ message: e.message });
+    await transaction.commit();
+    res.status(201).json({status: 1, success: true, message: "User signup successfully", data: userDetail });
+  } catch(e){
+    if (transaction) {
+      await transaction.rollback();
+    }
+     res.status(500).send({ message: e.message });
   }
 }
 
@@ -53,6 +57,8 @@ async function login(req, res) {
       return res.send("User not found");
       }
     const userData = result.toJSON();
+
+    await  services.updateStatus({status: 1}, {email: userData.email})
     const match = await comparePass(password, userData.password);
     if (!match) {
       res.status(401).json({
@@ -65,9 +71,11 @@ async function login(req, res) {
       ...userData,
       token,
     };
-    const msg = "login successfully";
-    res.status(201).json({status: 1, success: true, message: msg, data: output });
+    res.status(201).json({status: 1, success: true, message: "login successfully", data: output });
   } catch (e) {
+    if (transaction) {
+      await transaction.rollback();
+    }
     res.status(500).send({ message: e.message });
   }
 }
@@ -81,21 +89,21 @@ async function forgotPassword(req, res) {
     if (!userMail) {
       res.send("User Not Found");
     }
-    const {id, email, password, phone_number } = userMail;
+    const {id, email, phone_number } = userMail;
     // let check = 1
     // req.check = check
-    const token =await generateToken({
+    const token =await jwt.sign({ 
         id,
       email,
-      password,
       phone_number
-    });
-    const forgotPasswordLink = `${process.env.BASE_URL}/reset_password/${token}`;
-    const to = { email: details.email.toLowerCase() };
+    },
+    userMail.password, { expiresIn: "24hr" });
+    const forgotPasswordLink = `${process.env.BASE_URL}/reset_password/${userMail.id}/${token}`;
+    const to = { email: details.email };
     const subject = "Forgot password link";
     const htmlContent = `<html><h1> Here is Your One time forgot password link</h1>
     <a href="${forgotPasswordLink}">link text</a></html>`;
-    await sendImBlue.sendinBlueMail(to, subject, htmlContent);
+    await sendInBlue.sendinBlueMail(to, subject, htmlContent);
     res
       .status(200)
       .json({
@@ -115,25 +123,24 @@ async function resetPassword(req, res) {
   try {
     const { body, params } = req;
     const details = body;
-    const decoded = await decodeToken(params.token);
-  
-    if(decoded==="jwt expired"){
-      return res.send("Token expired")
-    }
-    const user = await services.getUserById(decoded.id);
+   
+    const user = await services.getUserById(params.id);
     if(!user){
       return res.send('User not found')
     }
     
-    if(user.password != decoded.password){
-      return  res.send({msg:"please login again"})
-    }
-
+    const decoded = await jwt.verify(params.token, user.password, function(err,decoded){
+      if(err){
+        return res.send({msg:"Invalid url"})
+      }
+      // else{
+      //   req.decoded = decoded
+      // }
+    })
+    console.log('1111', decoded)
       await services.updateById({ password: details.password }, user.id);
     
-    
-   
-    const data  = await services.getUserByMail(decoded.email)
+    const data  = await services.getUserByMail(user.email)
     res
       .status(200)
       .json({status:1, success: true, message: "Password reset successfully", data: data });
@@ -144,25 +151,21 @@ async function resetPassword(req, res) {
 
 // Update-profile Api
 async function updateProfile(req, res) {
+  const { body } = req;
+  const userData = req.user;
+  let transaction;
   try {
-    const { body } = req;
-    const details = body;
-    const userData = req.user;
-    // if (
-    //   details.email !== userData.email &&
-    //   details.phone_number !== userData.phone_number
-    // ) {
-      const getUser = await services.getUserByMail(details.email);
+      const getUser = await services.getUserByMail(body.email);
       if (getUser) {
         return res.send("Email  exist");
       }
-      const byPhone = await services.getUserByPhone(details.phone_number);
+      const byPhone = await services.getUserByPhone(body.phone_number);
       if (byPhone) {
         return res.send("phone  exist");
       }
-    // }
+      transaction = await sequelize.transaction();
     /**Update profile */
-    await services.updateById(details, userData.id);
+    await services.updateById(body, userData.id, transaction);
     const data  = await services.getUserById(userData.id);
     if(!data){
       return res.send("User not found");
@@ -173,6 +176,7 @@ async function updateProfile(req, res) {
       ...userDetail,
       token,
     };
+    await transaction.commit(); 
     res
       .status(200)
       .json({
@@ -183,14 +187,19 @@ async function updateProfile(req, res) {
       });
     
   } catch (e) {
+    if (transaction) {
+      await transaction.rollback();
+    }
      res.status(500).send({ message: e.message });
   }
 }
 
 //Update password
 async function updatePassword(req, res) {
+  const { body, user } = req;
+  let transaction;
   try {
-    const { body, user } = req;
+    transaction = await sequelize.transaction();
     const passwordMatch = await comparePass(body.old_password, user.password);
     if (!passwordMatch) {
       res.status(400).send({ message: "Incorrect password" });
@@ -198,7 +207,8 @@ async function updatePassword(req, res) {
     if (body.old_password === body.new_password) {
       return res.send('New password comparison')
     }
-    await services.updateById({ password: body.new_password }, user.id);
+    await services.updateById({ password: body.new_password }, user.id, transaction);
+    await transaction.commit();
     const data = await services.getUserByMail(user.email);
     res
       .status(200)
@@ -209,9 +219,34 @@ async function updatePassword(req, res) {
         data: data,
       });
   } catch (e) {
+    if(transaction){
+     await transaction.rollback();
+    }
     res.status(500).send({ message: e.message });
   }
 }
+
+//logout user
+async function logout(req, res){
+  try{
+  const userData = req.user;
+    await  services.updateStatus({status: 0}, {id: userData.id})
+    const data  = await services.getUserById(userData.id);
+    if(!data){
+      return res.send('User not found')
+    }
+   res.status(200).json({
+          status: 1,
+        success: true,
+        message: "Logout User successfully",
+        data: data,
+      });
+  } catch (e) {
+    res.status(500).send({ message: e.message });
+  }
+}
+
+
 module.exports = {
   signup,
   login,
@@ -219,4 +254,5 @@ module.exports = {
   resetPassword,
   updateProfile,
   updatePassword,
+  logout,
 };
