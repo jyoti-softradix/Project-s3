@@ -2,7 +2,7 @@ const bcrypt = require("bcrypt");
 const saltRounds = 10;
 module.exports = (sequelize, Sequelize) => {
   const user = sequelize.define(
-    "User",
+    "users",
     {
       id: {
         type: Sequelize.INTEGER,
