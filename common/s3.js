@@ -52,7 +52,6 @@ async function uploadFiles(req, res) {
     }
     res.status(200).send({success: true, msg: "Image uploaded successfully", data: uploadedFiles});
     } catch (e) {
-      console.log(e.message)
       res.status(500).send({ message: e.message });
     }
 }

@@ -21,21 +21,15 @@ module.exports = (sequelize, Sequelize) => {
       phone_number: {
         type: Sequelize.STRING,
         autoNull: true,
-        unique: true
       },
       email: {
         type: Sequelize.STRING,
         autoNull: true,
-        unique: true
       },
       password: {
         type: Sequelize.STRING,
         autoNull: true,
         defaultValue: null,
-      },
-      otp: {
-        type: Sequelize.STRING,
-        autoNull: true,
       },
       profile: {
         type: Sequelize.STRING,

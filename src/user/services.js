@@ -1,6 +1,7 @@
 // const sequelize = require('sequelize')
 const db = require("../../Model/db");
 const Users = db.user;
+const Address = db.address;
 
 module.exports = {
   async getUserByMail(email) {
@@ -11,6 +12,9 @@ module.exports = {
   },
   async createUser(data, transaction){
     return Users.create(data,{ transaction },);
+  },
+  async addUserAddress(payload, transaction){
+    return Address.create(payload,{ transaction },);
   },
   async getUserByPhone(phone_number) {
     return Users.findOne({ where: { phone_number: phone_number }});

@@ -27,17 +27,23 @@ async function signup(req, res) {
     if (!body.password) {
       body.password = randomstring.generate(7);
     }
-    const userDetail = await services.createUser(body,transaction);
-    delete userDetail.password;
+    let userDetail = await services.createUser(body,transaction);
+    userDetail = userDetail.toJSON();
+    const userInfo = {
+      ...body,
+      user_id: userDetail.id
+    }
+    delete userInfo.password;
+    await services.addUserAddress(userInfo, transaction)
     //sending mail
     const to = { email: body.email};
     const subject = "Signup confirmation mail";
-    const htmlContent = `<html><h1> Name:${userDetail.first_name}</h1>
+    const htmlContent = `<html><h1> Name:${userInfo.first_name}</h1>
             <h2>Password is: ${body.password}</h2></html>`;
     await sendInBlue.sendinBlueMail(to, subject, htmlContent);
     console.log("sendTo", to, subject, htmlContent);
     await transaction.commit();
-    res.status(201).json({status: 1, success: true, message: "User signup successfully", data: userDetail });
+    res.status(201).json({status: 1, success: true, message: "User signup successfully", data: userInfo });
   } catch(e){
     if (transaction) {
       await transaction.rollback();

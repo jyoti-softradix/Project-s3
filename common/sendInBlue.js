@@ -22,7 +22,7 @@ module.exports = {
           console.log("API called successfully. Returned data: " + data);
         },
         function (error) {
-          console.error(error);
+          console.error(error.message);
         }
       );
   },
