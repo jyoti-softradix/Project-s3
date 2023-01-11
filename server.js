@@ -1,7 +1,6 @@
 require("dotenv").config();
 const db = require("./Model/db");
 const users = require("./src/user/index");
-const post = require('./src/post/index')
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require('path');
@@ -11,7 +10,6 @@ const app = express();
 app.use(bodyParser.json());
 
 app.use("/", users);
-app.use("/", post);
 
 
 app.get("/", (req, res) => {

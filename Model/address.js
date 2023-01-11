@@ -1,6 +1,6 @@
 module.exports = (sequelize, Sequelize) => {
-    const posts = sequelize.define(
-      "Posts",
+    const address = sequelize.define(
+      "Address",
       {
         id: {
           type: Sequelize.INTEGER,
@@ -13,14 +13,18 @@ module.exports = (sequelize, Sequelize) => {
             autoNull: false,
             foreignKey: true,
         },
-        posts: {
+        address:{
           type: Sequelize.STRING,
           autoNull: true,
         },
-        description: {
+        city: {
+          type: Sequelize.STRING,
+          autoNull: true,
+        },
+        state: {
           type: Sequelize.STRING,
           autoNull: true,
         }
       })
-      return posts;
+      return address;
     }

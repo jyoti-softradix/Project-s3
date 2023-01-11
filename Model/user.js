@@ -33,6 +33,10 @@ module.exports = (sequelize, Sequelize) => {
         autoNull: true,
         defaultValue: null,
       },
+      otp: {
+        type: Sequelize.STRING,
+        autoNull: true,
+      },
       profile: {
         type: Sequelize.STRING,
         autoNull: true,
@@ -40,11 +44,11 @@ module.exports = (sequelize, Sequelize) => {
       status:{
         type: Sequelize.BOOLEAN,
         autoNull: true,
-        defaultValue: 1,
+        defaultValue: 0,
       }
     },
     {
-      paranoid: true, timeStamps:true,
+      paranoid: true, 
       hooks: {
         beforeCreate: async (user) => {
           if (user && user.email) {
