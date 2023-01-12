@@ -3,18 +3,110 @@ const db = require("./Model/db");
 const users = require("./src/user/index");
 const express = require("express");
 const bodyParser = require("body-parser");
-const path = require('path');
-
-// const { upload, uploadFileToAWS } = require("./common/s3");
+const cookieParser = require("cookie-parser");
+const passport = require('passport');
+const session = require('express-session');
+require('./common/passport_setup');
 const app = express();
 app.use(bodyParser.json());
 
 app.use("/", users);
 
+// google and facebook authentication
+
+//configure app sessions
+app.use(cookieParser());
+app.use(passport.initialize());
+app.use(session({
+   secret: process.env.SECRET,
+   resave: false,
+   saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use(
+  bodyParser.urlencoded({
+    extended: true,
+  })
+);
+
+app.set("view engine", "ejs");
 
 app.get("/", (req, res) => {
-  res.send("Server is running successfully");
+  res.render("index");
 });
+
+
+
+//Google Auth routes
+app.get(
+  "/auth/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+app.get("/failed", (req, res) => res.send("You Failed to log in!"));
+
+app.get("/good", (req, res) => {
+  res.render("profile.ejs", {
+    name: req.user.displayName,
+    pic: req.user._json.picture,
+    email: req.user.emails[0].value,
+    profile: "google",
+  });
+});
+// nqixnlmvefsjprii
+
+ // Auth Routes
+app.get('/auth/google/callback',
+   passport.authenticate('google', {
+       successRedirect: '/app', failureRedirect: '/failed' }),
+       (req, res) => {
+        res.redirect("/good");
+      }
+   );
+  
+app.get("/profile", (req, res) => {
+    res.render("profile", {
+      profile: "google",
+      name: req.user.displayName,
+      pic: req.user.photos[0].value,
+      email: req.user.emails[0].value, // get the user out of session and pass to template
+    });
+  });
+
+
+//Facebook Auth routes
+app.get('/auth/facebook', passport.authenticate('facebook', { scope: 'email' }));
+
+app.get("/good", (req, res) => {
+  res.render("profile.ejs", {
+    name: req.user.displayName,
+    pic: req.user._json.picture,
+    email: req.user.emails[0].value,
+    profile: "facebook",
+  });
+});
+
+app.get('/auth/facebook/callback',
+   passport.authenticate('facebook', {
+    successRedirect: "/profile",
+    failureRedirect: "/good",
+}))
+
+app.get("/logout", function (req, res) {
+  req.logout(function (err) {
+    if (err) {
+      return next(err);
+    }
+    res.redirect("/");
+  });
+})
+
+// app.get("/", (req, res) => {
+//   res.send("Server is running successfully");
+// });
 
 app.listen(5000, () => {
   console.log("listening on *:5000");
