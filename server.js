@@ -7,20 +7,17 @@ const cookieParser = require("cookie-parser");
 const passport = require('passport');
 const session = require('express-session');
 require('./common/passport_setup');
+
 const app = express();
 app.use(bodyParser.json());
 
-app.use("/", users);
-
 // google and facebook authentication
-
 //configure app sessions
-app.use(cookieParser());
-app.use(passport.initialize());
 app.use(session({
-   secret: process.env.SECRET,
-   resave: false,
-   saveUninitialized: false
+  secret: process.env.SECRET,
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false },
 }));
 
 app.use(passport.initialize());
@@ -32,22 +29,19 @@ app.use(
   })
 );
 
-app.set("view engine", "ejs");
+//route of api
+app.use("/", users);
 
+
+app.set("view engine", "ejs");
 app.get("/", (req, res) => {
   res.render("index");
 });
 
-
-
 //Google Auth routes
-app.get(
-  "/auth/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
+app.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 app.get("/failed", (req, res) => res.send("You Failed to log in!"));
-
+// In this route you can see that if the user is logged in u can access his info in: req.user
 app.get("/good", (req, res) => {
   res.render("profile.ejs", {
     name: req.user.displayName,
@@ -56,19 +50,19 @@ app.get("/good", (req, res) => {
     profile: "google",
   });
 });
-// nqixnlmvefsjprii
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/failed' }),
+  (req, res) => {
+    res.redirect('/good');
+  });
 
- // Auth Routes
-app.get('/auth/google/callback',
-   passport.authenticate('google', {
-       successRedirect: '/app', failureRedirect: '/failed' }),
-       (req, res) => {
-        res.redirect("/good");
-      }
-   );
+
+// // nqixnlmvefsjprii
+
   
 app.get("/profile", (req, res) => {
-    res.render("profile", {
+  console.log('req.user')
+    res.render("profile.ejs", {
       profile: "google",
       name: req.user.displayName,
       pic: req.user.photos[0].value,
@@ -104,9 +98,6 @@ app.get("/logout", function (req, res) {
   });
 })
 
-// app.get("/", (req, res) => {
-//   res.send("Server is running successfully");
-// });
 
 app.listen(5000, () => {
   console.log("listening on *:5000");
